@@ -1,0 +1,51 @@
+name: Daily X (1x/day)
+
+on:
+  workflow_dispatch:   # 手動実行のみ（自動はdaily_instagram.ymlに統合）
+
+jobs:
+  # ── Job 1: Xキャプションを生成してSlackに通知 ──────────────────
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Generate X post & notify Slack
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python scripts/generate_x_post.py
+      - name: Upload post data
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-data-x
+          path: post_data_x.json
+          retention-days: 1
+
+  # ── Job 2: 承認後にXへ投稿 ─────────────────────────────────────
+  post:
+    needs: generate
+    environment: preview        # ← ここで承認待ち
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Download post data
+        uses: actions/download-artifact@v4
+        with:
+          name: post-data-x
+      - name: Post to X
+        env:
+          X_OAUTH2_CLIENT_ID: ${{ secrets.X_OAUTH2_CLIENT_ID }}
+          X_OAUTH2_CLIENT_SECRET: ${{ secrets.X_OAUTH2_CLIENT_SECRET }}
+          X_OAUTH2_REFRESH_TOKEN: ${{ secrets.X_OAUTH2_REFRESH_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: python scripts/post_x.py
