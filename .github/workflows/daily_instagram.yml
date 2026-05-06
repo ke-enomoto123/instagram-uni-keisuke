@@ -2,7 +2,7 @@ name: Daily Post (Instagram + X)
 
 on:
   schedule:
-    - cron: '0 22 * * *'   # 7:00 JST (朝)
+    - cron: '0 12 * * *'   # 21:00 JST (夜)
   workflow_dispatch:
 
 jobs:

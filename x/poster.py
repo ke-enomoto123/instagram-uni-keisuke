@@ -158,3 +158,58 @@ def post_tweet_with_image(text: str, image_path: str, x_username: str = "uni_kei
     print(f"[X] 投稿完了! Tweet ID: {tweet_id}")
     print(f"[X] URL: https://x.com/{x_username}/status/{tweet_id}")
     return tweet_id
+
+
+def post_thread(
+    tweets: list[str],
+    image_path: str | None = None,
+    x_username: str = "uni_keisuke",
+) -> list[str]:
+    """X にスレッド投稿する。最初のツイートに画像を付け、以降をリプライで連結する。"""
+    if not tweets:
+        raise ValueError("tweets が空です")
+
+    print(f"[X] スレッド投稿開始（{len(tweets)}件）")
+
+    access_token = _get_access_token()
+
+    media_id = None
+    if image_path:
+        try:
+            media_id = _upload_media(image_path, access_token)
+        except Exception as e:
+            print(f"[X] 画像アップロード失敗、テキストのみで継続: {e}")
+            media_id = None
+
+    tweet_ids: list[str] = []
+    reply_to: str | None = None
+
+    for i, text in enumerate(tweets, start=1):
+        payload: dict = {"text": text}
+        if i == 1 and media_id:
+            payload["media"] = {"media_ids": [media_id]}
+        if reply_to:
+            payload["reply"] = {"in_reply_to_tweet_id": reply_to}
+
+        print(f"[X] {i}/{len(tweets)} 投稿中（{len(text)}字）...")
+        response = requests.post(
+            "https://api.x.com/2/tweets",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=30,
+        )
+        if not response.ok:
+            print(f"[X] 投稿エラー詳細: {response.text}")
+        response.raise_for_status()
+
+        tweet_id = str(response.json()["data"]["id"])
+        tweet_ids.append(tweet_id)
+        reply_to = tweet_id
+        print(f"[X] {i}/{len(tweets)} 投稿完了: {tweet_id}")
+
+    print(f"[X] スレッド投稿完了")
+    print(f"[X] URL: https://x.com/{x_username}/status/{tweet_ids[0]}")
+    return tweet_ids

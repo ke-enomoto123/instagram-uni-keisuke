@@ -1,65 +1,67 @@
 import random
 import os
 import anthropic
-from account_config import ACCOUNT_PERSONA, TOPIC_CATEGORIES, HASHTAGS_JA, POST_LANGUAGE
+from account_config import ACCOUNT_PERSONA, ACCOUNT_THEME, TOPIC_CATEGORIES, HASHTAGS_JA
 from config import ANTHROPIC_API_KEY
 
-POST_PATTERNS = [
-    "体験談型",
-    "比較型",
-    "気づき型",
-    "ハウツー型",
-    "キャンペーン紹介型",
-    "質問誘導型",
-    "数字で語る型",
+# IGの投稿パターン（インフォグラフィック向けTips系を中心に）
+IG_POST_PATTERNS = [
+    "Tips型",       # 大人の余裕の作り方 5選
+    "気づき型",      # 〜と思ってたけど、実は〜
+    "体験談型",      # 先日◯◯したら、〜と気づいた
+    "対比型",        # 〇〇する大人と、〇〇しない大人
+    "リスト型",      # 大人がやってる小さな習慣
 ]
 
-def _load_campaign_info() -> str:
-    """campaigns/active.txtからキャンペーン情報を読み込む"""
-    campaign_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "campaigns", "active.txt")
-    if os.path.exists(campaign_file):
-        with open(campaign_file, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-            if content:
-                return content
-    return ""
+# X用のスレッド投稿パターン（ランキング・リスト形式）
+X_THREAD_PATTERNS = [
+    "ランキング型",      # 〇〇TOP5
+    "リスト型",          # 〇〇する人がやってる5つの習慣
+    "対比型",            # 〇〇する大人と、〇〇しない大人
+    "数字×断言型",       # 40代で品が出る◯◯のコツ7
+]
 
-def _select_post_type() -> str:
-    """投稿タイプを選択（時間帯別）"""
-    time_of_day = os.getenv("TIME_OF_DAY", "general")
-    if time_of_day == "morning":
-        return random.choice(["ハウツー型", "気づき型", "数字で語る型"])
-    elif time_of_day == "noon":
-        return random.choice(["体験談型", "比較型", "キャンペーン紹介型"])
-    else:  # evening
-        return random.choice(["キャンペーン紹介型", "質問誘導型", "体験談型"])
+# uni固有の知識ベース（事実として参照可。捏造はNG）
+UNI_DOMAIN_KNOWLEDGE = """
+- 大人の身だしなみは「過剰でも怠惰でもない」中庸が品の鍵
+- 40代以降は「足し算より引き算」のファッションが上品に見える
+- 過剰な筋トレや極端なダイエットは品を損なう。日常の歩行・姿勢・呼吸の方が長期的に効く
+- 香水は強すぎない方が記憶に残る（パーソナル空間に入って初めて気づく程度）
+- 会話で相手を心地よくする最短距離は「先に話を最後まで聞く」
+- 食事の場では「店の選び方」「席のリード」「終わり方」が印象を決める
+- 質の良い時間を作る最大のコツは「予定に余白を持つこと」
+- 40代の身体維持は「走る・上げる」より「整える・休める」の比重を増やす
+- 大人のお金の使い方は「金額」より「対象と頻度の品」で見られる
+- 教養は知識量より「知らないことを知らないと言える誠実さ」に出る
+- 一人の時間を楽しめる人ほど、二人の時間も豊かになる
+- 持ち物のこだわりは「主張より馴染み」。長く使ったものに品が宿る
+- 大人の関係性は『追いかける』より『余白を残して待つ』
+"""
 
-def _generate_caption(topic: str, pattern: str, campaign_info: str) -> str:
+
+def _generate_ig_caption(topic: str, pattern: str) -> str:
+    """IG用キャプションを生成"""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
     length_type = random.choices(
         ["short", "medium", "long"],
-        weights=[30, 40, 30],
+        weights=[20, 50, 30],
         k=1,
     )[0]
 
     length_instruction = {
-        "short": "30〜60文字。一言で刺すような短いキャプション",
-        "medium": "80〜150文字。体験や気づきを2〜3文で",
-        "long": "150〜250文字。具体的な数字や手順を含めたお得情報",
+        "short": "40〜80文字。一言で刺さる短いキャプション",
+        "medium": "100〜180文字。気づきや体験を2〜3文で",
+        "long": "180〜280文字。具体的なTipsや手順を含めて",
     }[length_type]
-
-    campaign_section = ""
-    if campaign_info and random.random() < 0.4:
-        campaign_section = f"""
-【今使えるキャンペーン情報（事実のみ使用）】
-{campaign_info}
-"""
 
     prompt = f"""あなたは以下のペルソナでInstagramのキャプションを書いてください。
 
 【ペルソナ】
 {ACCOUNT_PERSONA}
+
+【アカウントテーマ】
+{ACCOUNT_THEME}
 
 【投稿トピック】
 {topic}
@@ -69,49 +71,128 @@ def _generate_caption(topic: str, pattern: str, campaign_info: str) -> str:
 
 【文字数】
 {length_instruction}
-{campaign_section}
 
-【SoftBankユーザー向け基礎知識（事実のみ・必要に応じて活用）】
-- LYPプレミアム：通常月額508円（税込）→ SoftBankの対象プランユーザーは無料で使える
-- LYPプレミアム会員はYahoo!ショッピングでポイント還元率が毎日+2倍になる
-- PayPayカードのYahoo!ショッピング利用でさらに+1倍（合計で最大5〜7%還元も可能）
-- PayPayカード基本還元率：1.5%（どこで使っても）
-- PayPayステップ：月の利用条件を達成すると翌月の還元率が最大+0.5%アップ
-- Yahoo!ショッピングは5のつく日・日曜日にポイント倍増キャンペーンが多い
-- SoftBankまとめて支払いでPayPayポイントが貯まるサービスもある
+【知識ベース（事実として参照可。捏造はNG）】
+{UNI_DOMAIN_KNOWLEDGE}
 
 【ルール】
-- 「SoftBankユーザーなら」「SoftBankユーザーだから」「SoftBankユーザーは」のニュアンスを自然に含める
-- 捏造はNG。具体的な数字は上記の基礎知識か、よく知られた事実のみ使用
-- 企業の宣伝っぽくならない。あくまで一ユーザーの体験・発見として書く
-- 絵文字を1〜2個使う
-- 最後に「。」をつけない
+- 押しつけがましくない、実体験のシェアとして書く
+- 「〇〇する男が」のような断定や決めつけは避ける
+- 軽薄・下品な言い回しはNG（小手先のテクではなく、品の話）
+- 過剰な筋トレ・ハードトレーニング・極端なダイエットは話題にしない
+- 「教えてやる」風NG。気づきの共有として書く
+- 絵文字は0〜1個まで。多用しない
+- 文末「。」は付けない
 - ハッシュタグは含めない（別途追加する）
 
 キャプション本文のみ出力してください。"""
 
     message = client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=400,
+        max_tokens=500,
         messages=[{"role": "user", "content": prompt}],
     )
 
     text = message.content[0].text.strip()
-
-    # 長さ制限
-    max_chars = {"short": 60, "medium": 150, "long": 250}[length_type]
-    if len(text) > max_chars * 2:
-        for sep in ["。", "\n"]:
-            if sep in text[:max_chars + 40]:
-                text = text[:text.index(sep, max_chars - 20) + 1] if sep in text[max_chars - 20:] else text
-                break
-        else:
-            text = text[:max_chars]
-    text = text.rstrip("。")
-
+    text = text.rstrip("。").rstrip("．")
     return text
 
+
+def _generate_x_thread(topic: str, pattern: str) -> dict:
+    """X用ランキング/リスト形式のスレッド投稿を生成（main + reply）"""
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    prompt = f"""あなたは以下のペルソナでX（Twitter）のスレッド投稿を作ります。
+
+【ペルソナ】
+{ACCOUNT_PERSONA}
+
+【アカウントテーマ】
+{ACCOUNT_THEME}
+
+【トピック】
+{topic}
+
+【投稿パターン】
+{pattern}
+
+【知識ベース（事実として参照可。捏造はNG）】
+{UNI_DOMAIN_KNOWLEDGE}
+
+【スレッド構成（必ず守る）】
+1. メインツイート（180〜260文字）
+   - キャッチーなタイトル（1行目で目を止める）
+   - その後にランキング/リスト項目を5つ簡潔に列挙（順位 or 番号付き）
+   - 末尾に「※詳しくはリプ欄👇」を入れる
+   - 例:
+     40代で『色気』が出る男の習慣 5選
+
+     1. 一人で行きつけの店を持っている
+     2. 朝の支度に余白を作っている
+     3. 香りで主張しない
+     4. 会話で先に質問しない
+     5. 別れ際を急がない
+
+     ※詳しくはリプ欄👇
+
+2. リプライ（180〜270文字）
+   - 各項目の補足を1〜2行ずつ
+   - 押しつけがましくなく、実体験ベースで
+   - 例:
+     1. 馴染みのバーは『一人で過ごせる場所』が一本ある
+     2. 朝5分の余白が日中の余裕を作る
+     3. 香水は近い距離で気づく程度に
+     4. 質問より、まず最後まで聞く
+     5. 別れ際の3秒で印象が決まる
+
+【出力フォーマット（厳守）】
+==MAIN==
+（メインツイート本文。改行を使ってOK）
+==REPLY==
+（リプライ本文。改行を使ってOK）
+
+【ルール】
+- 軽薄・下品な言い回しNG。年相応の品を保つ
+- 過剰な筋トレ・ハードトレーニングは話題にしない
+- ハッシュタグはメインの末尾に1〜2個まで
+- 絵文字は最小限（0〜2個、👇程度）
+- 文末「。」は付けない"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=900,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = message.content[0].text.strip()
+
+    # ==MAIN== / ==REPLY== でパース
+    main_text = ""
+    reply_text = ""
+    if "==MAIN==" in text and "==REPLY==" in text:
+        parts = text.split("==REPLY==")
+        main_text = parts[0].split("==MAIN==", 1)[1].strip()
+        reply_text = parts[1].strip()
+    else:
+        # フォールバック: 半分割
+        midpoint = len(text) // 2
+        main_text = text[:midpoint].strip()
+        reply_text = text[midpoint:].strip()
+
+    # 280字制限（厳守）
+    if len(main_text) > 280:
+        main_text = main_text[:277].rstrip() + "…"
+    if len(reply_text) > 280:
+        reply_text = reply_text[:277].rstrip() + "…"
+
+    return {
+        "tweets": [main_text, reply_text],
+        "topic": topic,
+        "pattern": pattern,
+    }
+
+
 def _score_caption(caption: str, topic: str) -> float:
+    """品質採点（uni基準）"""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
         model="claude-haiku-4-5",
@@ -121,10 +202,11 @@ def _score_caption(caption: str, topic: str) -> float:
             "content": f"""以下のInstagramキャプションを1〜10で採点してください。数字のみ回答。
 
 評価基準：
-- SoftBank経済圏ユーザーとして自然か
-- 企業っぽくないか（NG）
-- 共感・保存されそうか
-- 捏造・誇張がないか
+- 40代イケオジの品と落ち着きが出ているか
+- 押しつけがましくないか（NGワード: 「〇〇すべき」「絶対に」）
+- 軽薄/下品でないか（NG）
+- 共感・保存されそうか（具体性があるか）
+- 過剰な筋トレ・ダイエット話題が含まれていないか
 
 トピック：{topic}
 キャプション：{caption}
@@ -134,18 +216,19 @@ def _score_caption(caption: str, topic: str) -> float:
     )
     try:
         return float(message.content[0].text.strip().split()[0])
-    except:
+    except Exception:
         return 7.0
 
+
 def build_caption() -> dict:
+    """IG用キャプション生成（既存インターフェース維持）"""
     topic = random.choice(TOPIC_CATEGORIES)
-    pattern = _select_post_type()
-    campaign_info = _load_campaign_info()
+    pattern = random.choice(IG_POST_PATTERNS)
 
     print(f"[Caption] トピック: {topic}")
     print(f"[Caption] パターン: {pattern}")
 
-    caption = _generate_caption(topic, pattern, campaign_info)
+    caption = _generate_ig_caption(topic, pattern)
     score = _score_caption(caption, topic)
     print(f"[Caption] 品質スコア: {score}/10.0")
 
@@ -154,15 +237,12 @@ def build_caption() -> dict:
         if score >= 7.0:
             break
         print(f"[Caption] スコア不足 → 再生成 ({i+1}/{max_retries})")
-        caption = _generate_caption(topic, pattern, campaign_info)
+        caption = _generate_ig_caption(topic, pattern)
         score = _score_caption(caption, topic)
         print(f"[Caption] 品質スコア: {score}/10.0")
 
-    # ハッシュタグ選択（5〜8個）
     selected_hashtags = random.sample(HASHTAGS_JA, min(7, len(HASHTAGS_JA)))
-    hashtag_text = " ".join(selected_hashtags)
-
-    full_caption = f"{caption}\n\n{hashtag_text}"
+    full_caption = f"{caption}\n\n{' '.join(selected_hashtags)}"
 
     return {
         "caption": full_caption,
@@ -170,3 +250,18 @@ def build_caption() -> dict:
         "topic": topic,
         "pattern": pattern,
     }
+
+
+def build_x_thread() -> dict:
+    """X用ランキング/リストスレッド投稿（main + reply）"""
+    topic = random.choice(TOPIC_CATEGORIES)
+    pattern = random.choice(X_THREAD_PATTERNS)
+    print(f"[X Caption] トピック: {topic}")
+    print(f"[X Caption] パターン: {pattern}")
+
+    result = _generate_x_thread(topic, pattern)
+    main_len = len(result["tweets"][0])
+    reply_len = len(result["tweets"][1])
+    print(f"[X Caption] Main: {main_len}字 / Reply: {reply_len}字")
+
+    return result

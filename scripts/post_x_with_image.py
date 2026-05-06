@@ -1,6 +1,6 @@
 """
 post_x_with_image.py
-post_data.json を読み込んで画像付きでXに投稿
+post_data.json を読み込んで、画像付きスレッド形式（main + reply）でXに投稿
 """
 import os
 import sys
@@ -10,7 +10,7 @@ import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from x.poster import post_tweet_with_image, post_tweet
+from x.poster import post_thread, post_tweet
 
 
 def download_image(url: str, save_path: str) -> str:
@@ -31,26 +31,35 @@ def main():
     with open("post_data.json", "r", encoding="utf-8") as f:
         post_data = json.load(f)
 
-    x_text = post_data["x_text"]
-    image_url = post_data["image_url"]
+    x_tweets = post_data.get("x_tweets") or []
+    image_url = post_data.get("image_url", "")
     generated_at = post_data.get("generated_at", "不明")
 
-    print(f"[Post X] 生成日時: {generated_at}")
-    print(f"[Post X] 投稿テキスト:\n{x_text}")
-    print(f"[Post X] 文字数: {len(x_text)}")
-    print(f"[Post X] 画像URL: {image_url[:60]}...")
+    if not x_tweets:
+        # 旧スキーマフォールバック（x_text 単発）
+        x_text = post_data.get("x_text", "")
+        if x_text:
+            x_tweets = [x_text]
 
-    # 画像をダウンロード
+    print(f"[Post X] 生成日時: {generated_at}")
+    for i, t in enumerate(x_tweets, start=1):
+        print(f"[Post X] tweet {i}/{len(x_tweets)} ({len(t)}字):\n{t}\n")
+
+    # 画像をダウンロード（メインツイートに添付）
     image_path = "/tmp/post_image_x.jpg"
     try:
-        download_image(image_url, image_path)
-        tweet_id = post_tweet_with_image(x_text, image_path, x_username="uni_keisuke")
-    except Exception as e:
-        print(f"[Post X] 画像付き投稿失敗: {e}")
-        print("[Post X] テキストのみで投稿します...")
-        tweet_id = post_tweet(x_text, x_username="uni_keisuke")
+        if image_url:
+            download_image(image_url, image_path)
+        else:
+            image_path = None
 
-    print(f"\n[Post X] ✅ X投稿完了! ID: {tweet_id}")
+        tweet_ids = post_thread(x_tweets, image_path=image_path, x_username="uni_keisuke")
+    except Exception as e:
+        print(f"[Post X] スレッド投稿失敗: {e}")
+        print("[Post X] テキストのみ・スレッドで再試行...")
+        tweet_ids = post_thread(x_tweets, image_path=None, x_username="uni_keisuke")
+
+    print(f"\n[Post X] ✅ X投稿完了! {len(tweet_ids)}件、URL: https://x.com/uni_keisuke/status/{tweet_ids[0]}")
 
 
 if __name__ == "__main__":
