@@ -89,8 +89,8 @@ def _prompt_tips_infographic(c: dict) -> str:
     return f"""
 Create a striking premium editorial infographic (1:1 square, 1024x1024px) for a 40s adult men's lifestyle Instagram account.
 
-AESTHETIC REFERENCE:
-High-end luxury magazine cover meets boutique hotel brand book. Think The Rake, Robb Report, Casa BRUTUS, Monocle covers, Aman Resorts brand assets, or a Patek Philippe annual catalogue. Premium, intentional, eye-catching, refined.
+AESTHETIC REFERENCE (highest priority):
+Premium adult Tokyo lifestyle magazine — strongly evoke 大人の週末 (Otonano-Shumatsu) and 東京カレンダー (Tokyo Calendar) magazine spreads. Sophisticated Tokyo nightlife/dining culture for refined adult readers. Premium, intentional, modern, eye-catching but warm — never stiff luxury-watch-catalogue feel.
 
 COLOR PALETTE:
 {mood_palette}
@@ -121,10 +121,10 @@ DESIGN RULES:
 
 
 def _prompt_lifestyle_scene(c: dict) -> str:
-    """シネマティック写真 ＋ ダークガラス調オーバーレイ Tips"""
+    """大人の週末/東京カレンダー風 シーン写真 ＋ ダークガラス調オーバーレイ Tips"""
     scene = c.get(
         "scene_keyword",
-        "dimly lit luxury hotel lounge at dusk, single tumbler of amber whisky on dark walnut counter, brass detailing, leather Chesterfield in shallow focus background, warm amber lamp glow"
+        "dimly lit modern Tokyo bar at night, single tumbler of amber whisky on dark walnut counter, brass detailing, leather banquette in shallow focus background, warm amber lamp glow, Ginza vibe"
     )
     main_headline = c.get("main_headline", "")
     sub_headline = c.get("sub_headline", "")
@@ -133,10 +133,10 @@ def _prompt_lifestyle_scene(c: dict) -> str:
     mood = c.get("mood", "sophisticated")
 
     mood_desc = {
-        "calm":          "soft natural daylight, refined and peaceful — like an Aman Resorts portfolio shot",
-        "warm":          "warm intimate cinematic — golden hour or candlelight, inviting and tasteful — like a Park Hyatt suite at dusk",
-        "sophisticated": "moody low-key luxurious — deep shadows, warm pools of light, rich textures — like a Robb Report editorial spread",
-    }.get(mood, "moody low-key luxurious — deep shadows, warm pools of light, rich textures — like a Robb Report editorial spread")
+        "calm":          "soft warm light at dusk, refined Tokyo restaurant interior — like a 大人の週末 dining feature",
+        "warm":          "warm intimate cinematic — candlelight, brass lamps, inviting Tokyo bar atmosphere — like 東京カレンダー dining feature spread",
+        "sophisticated": "moody low-key — deep shadows, warm pools of light, rich textures, modern Tokyo nightlife — like 東京カレンダー mature dating feature illustration",
+    }.get(mood, "moody low-key — deep shadows, warm pools of light, rich textures, modern Tokyo nightlife — like 東京カレンダー mature dating feature illustration")
 
     overlay_block = ""
     if main_headline or short_tips:
@@ -156,8 +156,8 @@ TYPOGRAPHY OVERLAY (critical):
     return f"""
 Create a cinematic editorial lifestyle composition for a 40s adult men's Instagram (1:1 square, 1024x1024px).
 
-AESTHETIC REFERENCE:
-Editorial fine-art photography meets premium magazine layout. Think Robb Report / The Rake / Park Hyatt brand book / Aman Resorts portfolio. Atmospheric, intentional, restrained luxury.
+AESTHETIC REFERENCE (highest priority):
+Premium adult Tokyo lifestyle magazine — strongly evoke 大人の週末 (Otonano-Shumatsu) dining feature spreads and 東京カレンダー (Tokyo Calendar) mature dating editorial. Sophisticated Tokyo nightlife/dining culture for refined adult readers. Atmospheric, intentional, modern.
 
 PHOTOGRAPHY:
 - Subject scene: {scene}
@@ -204,8 +204,8 @@ def _prompt_illustration_with_people(c: dict) -> str:
     return f"""
 Create a chic MODERN editorial illustration (1:1 square, 1024x1024px) for a stylish 40s "kakkoii older man" Instagram account aimed at female audience (cute/pretty 20s-30s women who love gourmet and good drinks).
 
-AESTHETIC REFERENCE:
-Modern Japanese magazine illustration. Think Pen / GINZA / Hanako covers, contemporary Tokyo nightlife illustrations. CRISP, MODERN, slightly cinematic, romantically chic. The kind of illustration women save and dream about.
+AESTHETIC REFERENCE (highest priority):
+Premium adult Tokyo lifestyle magazine illustration. Strongly evoke 大人の週末 (Otonano-Shumatsu) and 東京カレンダー (Tokyo Calendar) magazine — sophisticated Tokyo nightlife/dining culture aimed at refined adult readers. Think Tokyo Calendar's romance feature illustrations, mature urban-dating editorial spreads, refined-but-warm color treatment.
 
 ABSOLUTELY DO NOT USE (critical constraints):
 - NO sepia tones, NO faded yellow vintage filter, NO Showa-era retro
@@ -224,11 +224,13 @@ Setting examples (pick one fitting the topic):
 - A specialty cocktail bar with marble counter
 - A premium hotel lounge at dusk with city view
 
-CHARACTER:
-- The 40s man: handsome, refined, modern smart-casual (well-fit knit, blazer, tailored shirt or turtleneck). Composed posture, subtle confident expression. Modern haircut. Holds a glass of wine/whisky/highball with care.
-- Optional: a 20s-30s woman in genuine conversation with him — modern, attractive, fashionable (one-piece dress, blouse, modern earrings). Real interaction (laughing, listening intently with light bent forward). NEVER objectified — she looks like she actually clicked with him.
-- Faces: clean modern features, attractive and ATTRACTIVE TO WOMEN VIEWERS. Confident expressions with warmth. NOT cartoonish, NOT melancholic, NOT retro.
-- DRAWING STYLE: clean modern lineart with confident strokes, soft modern color blocks, slight cinematic atmosphere, crisp shadows. Vector-illustration meets modern editorial — think Tokyo magazine illustration in 2025.
+CHARACTER (critical nuance — busy yet composed):
+- The 40s man: handsome, refined, well-tailored smart-casual (well-fit knit, blazer, crisp tailored shirt, or refined turtleneck). Modern haircut. Holds a glass of wine/whisky/highball with care.
+- He looks BUSY-BUT-FULLY-PRESENT. Subtle clues he came from work and is generously making time for her: a closed leather notebook on the corner of the table, a smartphone placed face-down (NOT being looked at), a coat draped on the chair behind him. But all his attention is on the woman.
+- Posture: composed, slightly leaning toward her — undivided attention, never rushed. The "余裕" is in his thoughtfulness toward her, NOT in idleness.
+- Optional: a 20s-30s woman across from him in genuine conversation — modern, attractive, fashionable (one-piece dress, blouse, refined earrings). Real interaction (laughing, listening intently). She visibly feels valued and unhurried by him. NEVER objectified.
+- Faces: clean modern features, attractive and dating-savvy. Confident expressions with warmth. NOT cartoonish, NOT melancholic, NOT retro.
+- DRAWING STYLE: clean modern lineart with confident strokes, soft modern color blocks, slight cinematic atmosphere, crisp shadows. Editorial illustration in the spirit of 東京カレンダー magazine spreads.
 
 LAYOUT:
 - TOP or TOP-LEFT: Headline "{main_headline}" in clean modern Japanese typography (sans-serif or thin elegant serif), in deep ink, warm gold, or dusty rose. NEVER hand-lettered casual.
