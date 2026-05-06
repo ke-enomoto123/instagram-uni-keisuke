@@ -20,6 +20,47 @@ def _tweet_weight(text: str) -> int:
     return weight
 
 
+def _split_navigation(text: str) -> tuple[str, str]:
+    """テキストから navigation 部分（※〜リプ欄系）を分離。返値: (body, navigation)"""
+    lines = text.split("\n")
+    nav_start = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("※") and ("リプ欄" in stripped or "続き" in stripped or "詳細" in stripped):
+            nav_start = i
+            break
+    if nav_start is None:
+        return text, ""
+    body = "\n".join(lines[:nav_start]).rstrip()
+    navigation = "\n".join(lines[nav_start:]).strip()
+    return body, navigation
+
+
+def _smart_split_first_tweet(text: str, max_weight: int = 270) -> list[str]:
+    """Tweet 1 専用 smart split。navigation（※続きはリプ欄系）を必ず Tweet 1 末尾に置く。"""
+    if _tweet_weight(text) <= max_weight:
+        return [text]
+
+    body, navigation = _split_navigation(text)
+    if not navigation:
+        return _split_tweet_by_sentence(text, max_weight)
+
+    nav_weight = _tweet_weight(navigation)
+    if nav_weight >= max_weight - 30:
+        return _split_tweet_by_sentence(text, max_weight)
+
+    body_max = max_weight - nav_weight - 2
+    body_pieces = _split_tweet_by_sentence(body, max_weight=body_max)
+    if not body_pieces:
+        return [navigation]
+
+    tweet1 = (body_pieces[0] + "\n\n" + navigation).strip()
+    if _tweet_weight(tweet1) > max_weight:
+        return _split_tweet_by_sentence(text, max_weight)
+
+    return [tweet1] + body_pieces[1:]
+
+
 def _split_tweet_by_sentence(text: str, max_weight: int = 270) -> list[str]:
     """1ツイート分のテキストを、必要なら複数ツイートに分割（文単位優先、最後の手段で文字単位）"""
     if _tweet_weight(text) <= max_weight:
@@ -98,14 +139,28 @@ HOOK_LINES = [
     "イケオジが普通にやってる、女性が気づく所作",
 ]
 
-# 地名（トレンドの大人スポットがある主要エリア）
-LOCATIONS = [
-    "渋谷", "銀座", "中目黒", "代官山", "六本木", "麻布", "西麻布",
-    "恵比寿", "白金", "丸の内", "表参道", "青山", "神楽坂", "三軒茶屋",
-    "京都", "大阪", "福岡",
+# 地名（重み付き選択。HIGH=頻出、MED=中頻度、LOW=控えめ）
+HIGH_FREQ_LOCATIONS = [
+    "恵比寿", "銀座", "五反田", "目黒", "渋谷", "代々木上原", "新橋", "大手町",
+]
+MED_FREQ_LOCATIONS = [
+    "中目黒", "代官山", "麻布", "西麻布", "白金", "丸の内", "表参道", "青山", "神楽坂", "三軒茶屋",
+]
+LOW_FREQ_LOCATIONS = [
+    "六本木", "京都", "大阪", "福岡",
 ]
 
-# 地名トピックのテンプレート
+
+def _select_location() -> str:
+    bucket = random.choices(["high", "med", "low"], weights=[60, 30, 10], k=1)[0]
+    if bucket == "high":
+        return random.choice(HIGH_FREQ_LOCATIONS)
+    if bucket == "med":
+        return random.choice(MED_FREQ_LOCATIONS)
+    return random.choice(LOW_FREQ_LOCATIONS)
+
+
+# 地名トピックのテンプレート（高級〜庶民派の使い分けを含む）
 LOCATION_TOPIC_TEMPLATES = [
     "モテ既婚者の{location}の飲み方",
     "{location}で大人カップルが選ぶスポット",
@@ -116,6 +171,9 @@ LOCATION_TOPIC_TEMPLATES = [
     "{location}で女性が喜ぶスポット",
     "{location}デートの正解",
     "{location}でモテる大人の店選び",
+    "{location}の大人の使い方（高級〜庶民派の使い分け）",
+    "{location}で品よく赤提灯を楽しむ大人の作法",
+    "{location}の渋い立ち飲み・赤提灯の品ある楽しみ方",
 ]
 
 # 地名トピック向けの構造パターン
@@ -158,6 +216,23 @@ UNI_DOMAIN_KNOWLEDGE = """
 - 一人の時間を楽しめる人ほど、二人の時間も豊かになる
 - 持ち物のこだわりは「主張より馴染み」。長く使ったものに品が宿る
 - 大人の関係性は『追いかける』より『余白を残して待つ』
+
+【お酒の基礎雑学（基本知識をシェアする話題）】
+- 白ワインは魚介・前菜、赤は肉・濃い料理、オレンジワインは香り立つ料理（中華・スパイス系）に合う
+- ワインは「ナッツ感」「酸」「タンニン」など感じたままを言葉にできる方が、専門用語より好印象
+- シャンパーニュは祝杯。記念日には1本ボトルで頼む方が品が出る
+- スパークリングワインとシャンパーニュの違いはシャンパーニュ地方産か否か（製法も厳格）
+- ハイボールは薄めの方が食事を邪魔しない。氷とソーダの量が決め手
+- 日本酒は燗で旨味、冷やで切れ。料理に合わせて温度を選べる
+- ウイスキーはシングルモルトとブレンデッドの違いを知っているくらいが大人の素養
+- お酒の知識は「ひけらかさない」のが品。聞かれたら答える程度
+- バーでは「マスターの一推し」を聞ける男が品ある
+
+【大人の楽しみ方の幅】
+- 大人の楽しみは『高級店だけ』ではない。新橋の赤提灯、五反田の立ち飲み、こうした庶民派にも品よく通える余裕が大人の幅
+- 高級店と気軽な店、両方を楽しめるのが本当の余裕。場所で評価を変えない
+- 赤提灯で大将と話す姿、銀座のカウンターで静かに飲む姿、両方が同じ自分でいられる
+- 立ち飲みでも自然に笑顔になれる。緊張や見栄を捨てて、その場を味わう
 """
 
 
@@ -165,7 +240,7 @@ def _select_topic_and_pattern() -> tuple[str, str, bool]:
     """トピックとパターンを選定。30%の確率で地名トピックに切り替える。"""
     use_location = random.random() < 0.3
     if use_location:
-        location = random.choice(LOCATIONS)
+        location = _select_location()
         template = random.choice(LOCATION_TOPIC_TEMPLATES)
         topic = template.format(location=location)
         pattern = random.choice(LOCATION_FRIENDLY_PATTERNS)
@@ -343,12 +418,14 @@ def _generate_x_thread(topic: str, pattern: str, is_location: bool) -> dict:
   「BEFORE→AFTER型」なら変化の前後、「DO/DON'T型」ならOK例とNG例、
   というように、選んだパターンに合った構造で組み立ててください。
 
-【1件目（先頭ツイート）の必須要素】
+【1件目（先頭ツイート）の必須要素・厳守】
 - {hook_instruction}
 - 目を止めるキャッチーなタイトル
-- 全項目（5つ前後）の見出しだけを短く列挙（1項目10〜15字）
-- 末尾に「※続きはリプ欄👇」のような誘導を入れる
+- 全項目（5つ前後）の見出しだけを短く列挙（1項目10〜13字）
+- **末尾に必ず「※続きはリプ欄👇」を1件目の中に入れる**（絶対に2件目以降に切り離さない）
 - ハッシュタグはメイン末尾に **最大1個** まで
+- 上記すべてを含めて **1件目は日本語110字以内** に収める（フック・タイトル・見出し・誘導・ハッシュタグの合計）
+- 入りきらなければ、見出し数を3〜4個に減らすか、タイトルを短くする
 {location_instruction}
 
 【2件目以降の必須要素】
@@ -387,10 +464,13 @@ def _generate_x_thread(topic: str, pattern: str, is_location: bool) -> dict:
         midpoint = len(text) // 2
         tweets = [text[:midpoint].strip(), text[midpoint:].strip()]
 
-    # 重み超過なら文単位で分割（途切れた "…" を生まない）
+    # Tweet 1 は navigation を必ず保持、それ以降は通常 split
     expanded: list[str] = []
-    for t in tweets:
-        expanded.extend(_split_tweet_by_sentence(t, max_weight=270))
+    for i, t in enumerate(tweets):
+        if i == 0:
+            expanded.extend(_smart_split_first_tweet(t, max_weight=270))
+        else:
+            expanded.extend(_split_tweet_by_sentence(t, max_weight=270))
     tweets = expanded
 
     return {
@@ -465,7 +545,7 @@ def build_x_thread() -> dict:
     """X用スレッド投稿（地名トピック・冒頭フック対応、可変2-5件）"""
     use_location = random.random() < 0.3
     if use_location:
-        location = random.choice(LOCATIONS)
+        location = _select_location()
         topic = random.choice(LOCATION_TOPIC_TEMPLATES).format(location=location)
         pattern = random.choice(LOCATION_FRIENDLY_PATTERNS)
     else:
