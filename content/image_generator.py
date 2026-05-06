@@ -179,65 +179,81 @@ RULES:
 
 
 def _prompt_illustration_with_people(c: dict) -> str:
-    """人物イラスト＋会話/気づき調（日常感あり）"""
+    """モダンTokyo・デート慣れの大人男性イラスト（女性ウケを狙う）"""
     main_headline = c.get("main_headline", "")
     sub_headline = c.get("sub_headline", "")
     tip_items = c.get("tip_items", []) or []
     short_tips = tip_items[:5]
-    mood = c.get("mood", "warm")
-
-    # 吹き出し用に1番目のtipを抜粋（短い「気づき」表現）
-    speech_tip = (short_tips[0] if short_tips else main_headline) or "それ、わかる"
+    mood = c.get("mood", "sophisticated")
 
     items_block = ""
     if short_tips:
         nums = "\n".join([f'    {i+1}. "{t}"' for i, t in enumerate(short_tips)])
         items_block = f"""
-- BOTTOM-RIGHT or RIGHT-SIDE PANEL: A small notebook-page or tasteful list area showing numbered tips:
+- RIGHT-SIDE TRANSLUCENT PANEL: A clean modern panel with numbered tips:
 {nums}
-  Hand-lettered or rounded mincho typography, in muted brown or navy ink.
+  Modern Japanese sans-serif or thin elegant serif typography, in deep ink or warm gold.
 """
 
     palette = {
-        "calm":   "muted cream background with sage green and soft terracotta accents — like 暮しの手帖 magazine",
-        "warm":   "warm cream/oatmeal background with warm taupe, soft orange, and navy — like a tasteful Japanese editorial illustration",
-        "sophisticated": "warm beige with deep navy and warm rust accents — refined but inviting, like a Brutus magazine illustration",
-    }.get(mood, "warm cream with warm taupe, soft orange, and navy — tasteful Japanese editorial illustration")
+        "calm":          "soft cream background with deep navy and dusty rose accents — modern Tokyo lifestyle magazine like Hanako",
+        "warm":          "warm ivory background with deep brown, amber, and brass accents — premium izakaya/bar at golden hour, like Pen magazine",
+        "sophisticated": "deep charcoal/midnight blue base with brass-gold and warm ivory accents — sophisticated Tokyo nightlife, like GINZA magazine cover",
+    }.get(mood, "deep charcoal/midnight blue base with brass-gold and warm ivory accents — sophisticated Tokyo nightlife, like GINZA magazine cover")
 
     return f"""
-Create a warm modern Japanese editorial illustration (1:1 square, 1024x1024px) for an adult men's lifestyle Instagram post.
+Create a chic MODERN editorial illustration (1:1 square, 1024x1024px) for a stylish 40s "kakkoii older man" Instagram account aimed at female audience (cute/pretty 20s-30s women who love gourmet and good drinks).
 
 AESTHETIC REFERENCE:
-Contemporary Japanese editorial illustration. Think Brutus / Casa BRUTUS / 暮しの手帖 illustrations, New Yorker cartoons softened, or quiet Japanese book covers. Hand-drawn feel, expressive but refined.
+Modern Japanese magazine illustration. Think Pen / GINZA / Hanako covers, contemporary Tokyo nightlife illustrations. CRISP, MODERN, slightly cinematic, romantically chic. The kind of illustration women save and dream about.
+
+ABSOLUTELY DO NOT USE (critical constraints):
+- NO sepia tones, NO faded yellow vintage filter, NO Showa-era retro
+- NO 暮しの手帖 / NO literary watercolor wash style
+- NO melancholic / contemplative / quiet folksy vibe
+- NO casual hand-lettered child-like typography
 
 SCENE:
-A relatable everyday moment featuring 1-2 simply illustrated adult figures (40s man, possibly with a friend / partner / colleague). The scene captures a small "あ、わかる" moment of realization or quiet conversation.
-- Setting examples: cafe counter, izakaya, hotel bar, walking on an evening street, study desk, train window seat, kitchen at night. Pick what fits the headline mood.
-- Characters: simple but warm linework, friendly faces (no excessive detail). The 40s man is in tasteful smart-casual (sweater, knit, shirt). Show personality through posture, gesture, small details.
-- Optional: a subtle thought bubble OR small speech-bubble panel near a character with brief Japanese text "{speech_tip}" (under 14 chars), feeling natural, not preachy.
+A stylish 40s adult man in a sophisticated MODERN Tokyo setting, captured in a moment that women would screenshot and dream about. The man is composed, kakkoii, refined, dating-savvy.
+
+Setting examples (pick one fitting the topic):
+- Modern Shibuya / Ginza / Naka-Meguro / Daikanyama bar at night with soft accent lighting and brass detailing
+- Trendy Aoyama / Roppongi / Nishi-Azabu izakaya with refined dark wood interior
+- A rooftop bar with Tokyo night view (neon, blue hour)
+- A sleek modern restaurant with intimate seating and candlelight
+- A specialty cocktail bar with marble counter
+- A premium hotel lounge at dusk with city view
+
+CHARACTER:
+- The 40s man: handsome, refined, modern smart-casual (well-fit knit, blazer, tailored shirt or turtleneck). Composed posture, subtle confident expression. Modern haircut. Holds a glass of wine/whisky/highball with care.
+- Optional: a 20s-30s woman in genuine conversation with him — modern, attractive, fashionable (one-piece dress, blouse, modern earrings). Real interaction (laughing, listening intently with light bent forward). NEVER objectified — she looks like she actually clicked with him.
+- Faces: clean modern features, attractive and ATTRACTIVE TO WOMEN VIEWERS. Confident expressions with warmth. NOT cartoonish, NOT melancholic, NOT retro.
+- DRAWING STYLE: clean modern lineart with confident strokes, soft modern color blocks, slight cinematic atmosphere, crisp shadows. Vector-illustration meets modern editorial — think Tokyo magazine illustration in 2025.
 
 LAYOUT:
-- TOP or TOP-LEFT: Headline "{main_headline}" in elegant casual rounded mincho or hand-lettered serif Japanese, in deep navy or warm rust
-- {f'Below in smaller weight: "{sub_headline}"' if sub_headline else ''}
-- CENTER: The illustrated scene (largest visual element)
+- TOP or TOP-LEFT: Headline "{main_headline}" in clean modern Japanese typography (sans-serif or thin elegant serif), in deep ink, warm gold, or dusty rose. NEVER hand-lettered casual.
+- {f'Below in lighter weight: "{sub_headline}"' if sub_headline else ''}
+- CENTER: The main illustrated scene (largest visual element)
 {items_block}
-- BOTTOM or BOTTOM-LEFT: Tiny "{ACCOUNT_HANDLE}" handle in casual hand-lettered style
+- BOTTOM or BOTTOM-RIGHT: Small "{ACCOUNT_HANDLE}" in modern thin type
 
 PALETTE:
 {palette}
-- Soft watercolor / colored-pencil shading — gentle, no harsh outlines
-- Optional subtle paper or linen texture in background
+- Modern slightly cinematic lighting — Tokyo evening, blue hour, neon accent, candlelight, brass
+- AVOID at all costs: sepia, faded yellow, dusty muted retro, watercolor wash, sentimental literary
 
 TONE:
-- "this could be me" — warm relatability
-- Not luxurious-stiff, not childish — refined warmth
-- Insight, conversation, or quiet observation — never preachy
+- "I want to date a man like this" / "そのバーに連れて行ってほしい" — appealing to 20s-30s women who love gourmet and drinks
+- Confident, refined, kakkoii, scrollable-by-women
+- Slightly romantic, modern, urban Tokyo nightlife
+- Viewer should imagine being IN this scene with him
 
 RULES:
-- Japanese text must be perfectly rendered (mincho/casual rounded weight)
+- Modern, NOT retro
+- Japanese text perfectly rendered in MODERN type weight
 - No real-brand logos
-- Faces are illustrated and friendly, never realistic photographic
-- Mood: warm, inviting, relatable, slightly melancholic or contemplative is OK
+- Faces illustrated, attractive, modern fashion
+- The vibe is confident dating-savvy adult, not literary/nostalgic
 """
 
 
