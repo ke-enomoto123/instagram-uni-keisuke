@@ -62,88 +62,114 @@ def _analyze_caption(caption: str) -> dict:
 
 
 def _prompt_tips_infographic(c: dict) -> str:
-    """Tips型インフォグラフィック（落ち着いた編集デザイン）"""
+    """高級ブランドブック風の凝ったTipsインフォグラフィック"""
     main_headline = c.get("main_headline", "大人の余裕の作り方")
     sub_headline = c.get("sub_headline", "")
     tip_items = c.get("tip_items", []) or []
-    if len(tip_items) < 3:
-        tip_items = (tip_items + ["項目1", "項目2", "項目3"])[:3]
-    tip_items = tip_items[:5]
+    tip_items = (tip_items + ["項目1", "項目2", "項目3"])[:5]
     mood = c.get("mood", "sophisticated")
 
-    items_text = "\n".join([f'  {i+1}. "{item}"' for i, item in enumerate(tip_items)])
+    items_text = "\n".join([
+        f'  Item {i+1}: large elegant Roman numeral or arabic number "{i+1}" in champagne-gold serif at left, '
+        f'matched to Japanese mincho text "{item}" on the right side'
+        for i, item in enumerate(tip_items)
+    ])
 
     mood_palette = {
-        "calm":          "muted beige and soft gray on warm cream off-white background — minimal, serene",
-        "warm":          "warm taupe and soft amber on warm cream background — like a tasteful lifestyle magazine",
-        "sophisticated": "deep navy and warm gold on warm cream background — like a high-end editorial spread",
-    }.get(mood, "deep navy and warm gold on warm cream background — like a high-end editorial spread")
-
-    sub_block = f"""- Below: smaller sub-text "{sub_headline}" in lighter weight""" if sub_headline else ""
+        "calm":          "deep slate-charcoal base with warm ivory and brushed brass-gold accents — like a monogrammed leather notebook",
+        "warm":          "rich burgundy/oxblood base with warm ivory and brass-gold accents — like a Park Hyatt brand brochure cover",
+        "sophisticated": "deep midnight navy or near-black base with champagne-gold and warm ivory accents — like a luxury watch maison's catalogue cover",
+    }.get(mood, "deep midnight navy or near-black base with champagne-gold and warm ivory accents — like a luxury watch maison's catalogue cover")
 
     return f"""
-Create a sophisticated Japanese editorial tips infographic (1:1 square, 1024x1024px) for Instagram.
-Style: high-end men's lifestyle magazine aesthetic — feels premium, calm, refined. Like Casa BRUTUS / Monocle / OCEANS magazine layout.
-Mood and palette: {mood_palette}
+Create a striking premium editorial infographic (1:1 square, 1024x1024px) for a 40s adult men's lifestyle Instagram account.
 
-LAYOUT:
-- TOP: Bold Japanese headline "{main_headline}" in elegant serif typography (mincho-style)
-{sub_block}
-- THIN HORIZONTAL DIVIDING LINE
-- CENTER: Numbered list of {len(tip_items)} tips, vertically arranged with thin dividing lines:
+AESTHETIC REFERENCE:
+High-end luxury magazine cover meets boutique hotel brand book. Think The Rake, Robb Report, Casa BRUTUS, Monocle covers, Aman Resorts brand assets, or a Patek Philippe annual catalogue. Premium, intentional, eye-catching, refined.
+
+COLOR PALETTE:
+{mood_palette}
+Maximum 3 colors total: dark base + ivory/cream + champagne-gold accent. NO bright red, NO yellow, NO neon, NO bright tones.
+
+LAYOUT (precise, all Japanese text must render perfectly):
+- TOP-CENTER: A small ornate decorative element above the headline — thin double-line frame, monogram badge, classical seal, or fine art-deco motif (in champagne gold)
+- HEADLINE: "{main_headline}" in large elegant Japanese mincho/serif typography, set in warm ivory or champagne gold. Confident, refined, NOT loud.
+- SUBLINE: "{sub_headline}" in smaller mincho italic-feel weight below, slightly tracked, in muted ivory
+- A thin horizontal hairline divider (1px, gold) under the header
+- BODY (center, vertically stacked): Numbered tip list with strong hierarchy:
 {items_text}
-  Each item: number on left in a thin circular frame, Japanese text on right
-  Use minimalist line icons (ultra-simple, geometric) beside or near each item — no photographic elements
-- BOTTOM: Footer with "{ACCOUNT_HANDLE}" in small light gray text
+  Numbers should be visually DOMINANT (large, champagne-gold serif numerals — like a Roman editorial folio) — they catch the eye first.
+  Japanese tip text aligned to the right of each number, in elegant mincho.
+  Between each item: a delicate gold hairline divider (very thin).
+- BACKGROUND: Subtle texture — fine linen weave, brushed paper grain, or matte fabric — NOT a flat solid color. Slight inner vignette darkening at edges.
+- DECORATIVE ACCENTS: Tiny classic line ornaments at the four corners (filigree / fleurons / minimal art-deco motifs), set in thin gold, sized so they frame without competing.
+- BOTTOM-CENTER: A small monogram-style seal containing "{ACCOUNT_HANDLE}" in tiny refined lettering, with a thin gold circle around it.
 
 DESIGN RULES:
-- Editorial / minimalist Japanese aesthetic — looks like a curated lifestyle magazine spread
-- Ample white space, refined typography hierarchy
-- Color palette: muted, sophisticated — NO bright red, NO yellow, NO neon, NO loud colors
-- All Japanese text perfectly rendered, readable, with proper kerning
-- NO photographic faces, NO photographic objects — only minimal line illustrations
-- Feels like an adult, well-bred audience would save it
-- Avoid sales/advertisement vibe entirely
+- Feels expensive, slow, intentional — like print, not screen
+- Strong visual hierarchy: ornament → headline → numbered tips → footer
+- Japanese text perfectly rendered (mincho/serif weight, accurate kerning, no malformed glyphs)
+- NO sales / promotional vibe, NO photographic faces, NO product shots
+- Negative space is part of the design — let the typography breathe
+- The image should make a 40-something man pause, screenshot, and save it
 """
 
 
 def _prompt_lifestyle_scene(c: dict) -> str:
-    """ライフスタイル雰囲気写真（人物なし）"""
+    """シネマティック写真 ＋ ダークガラス調オーバーレイ Tips"""
     scene = c.get(
         "scene_keyword",
-        "dimly lit hotel bar with a glass of whisky on dark walnut counter, warm amber lighting, leather chair in soft focus background"
+        "dimly lit luxury hotel lounge at dusk, single tumbler of amber whisky on dark walnut counter, brass detailing, leather Chesterfield in shallow focus background, warm amber lamp glow"
     )
     main_headline = c.get("main_headline", "")
+    sub_headline = c.get("sub_headline", "")
+    tip_items = c.get("tip_items", []) or []
+    short_tips = tip_items[:3]
     mood = c.get("mood", "sophisticated")
 
     mood_desc = {
-        "calm":          "soft, muted, peaceful — natural daylight, simple composition, calm atmosphere",
-        "warm":          "warm tones, intimate, cinematic — golden hour or candlelight, inviting feel",
-        "sophisticated": "moody, refined, luxurious — low key lighting, rich textures, restrained elegance",
-    }.get(mood, "moody, refined, luxurious — low key lighting, rich textures, restrained elegance")
+        "calm":          "soft natural daylight, refined and peaceful — like an Aman Resorts portfolio shot",
+        "warm":          "warm intimate cinematic — golden hour or candlelight, inviting and tasteful — like a Park Hyatt suite at dusk",
+        "sophisticated": "moody low-key luxurious — deep shadows, warm pools of light, rich textures — like a Robb Report editorial spread",
+    }.get(mood, "moody low-key luxurious — deep shadows, warm pools of light, rich textures — like a Robb Report editorial spread")
 
-    headline_block = f"""
-- Optional small Japanese text overlay "{main_headline}" placed tastefully (top-left or bottom) in refined thin typography (semi-transparent or muted color, never dominating the image)""" if main_headline else ""
+    overlay_block = ""
+    if main_headline or short_tips:
+        items_text = "\n".join([f'    {i+1}. "{item}"' for i, item in enumerate(short_tips)]) if short_tips else ""
+        sub_inline = f'\n  - Below the headline, a thin gold hairline divider, then "{sub_headline}" in italicized smaller weight' if sub_headline else ""
+        items_inline = f"\n  - Below the divider, numbered tips in warm ivory mincho:\n{items_text}" if items_text else ""
+        overlay_block = f"""
+TYPOGRAPHY OVERLAY (critical):
+- On the LEFT THIRD or BOTTOM of the canvas, place a translucent dark-glass / smoked-obsidian panel (semi-transparent black with subtle inner glow), giving rich legibility for text
+- Panel framing: a thin champagne-gold hairline border (1px), with delicate art-deco corner accents
+- Inside the panel:
+  - Japanese headline "{main_headline}" in elegant mincho/serif, in warm champagne gold{sub_inline}{items_inline}
+- Right side / remaining canvas keeps the rich photographic atmosphere fully visible
+- Panel must NOT cover the focal subject of the photo — should feel like a typeset caption layered over editorial photography
+"""
 
     return f"""
-Create a cinematic editorial lifestyle photograph for an Instagram post (1:1 square, 1024x1024px).
-Subject: {scene}
-Mood: {mood_desc}
+Create a cinematic editorial lifestyle composition for a 40s adult men's Instagram (1:1 square, 1024x1024px).
 
-COMPOSITION:
-- Photographic style: editorial fine-art photography for a high-end men's lifestyle magazine
-- NO PEOPLE in the frame (no faces, no full bodies; abstract silhouettes from behind only if absolutely needed)
-- Rich textures: leather, dark wood, brass, glass, fabric, paper
-- Shallow depth of field, professional lighting
-- Composition is intentional and uncluttered{headline_block}
-- BOTTOM: Tiny "{ACCOUNT_HANDLE}" watermark in semi-transparent type
+AESTHETIC REFERENCE:
+Editorial fine-art photography meets premium magazine layout. Think Robb Report / The Rake / Park Hyatt brand book / Aman Resorts portfolio. Atmospheric, intentional, restrained luxury.
+
+PHOTOGRAPHY:
+- Subject scene: {scene}
+- Lighting and mood: {mood_desc}
+- NO PEOPLE / NO FACES (abstract silhouettes from behind only if absolutely necessary)
+- Rich material textures: dark walnut, brass, leather, glass, wool, silk, linen
+- Shallow depth of field, deliberate composition, deep shadows used as compositional element
+- Restrained palette: dominant earth tones (deep brown, charcoal, oxblood, navy) + ONE warm accent (amber, brass-gold, warm ivory)
+{overlay_block}
+- BOTTOM-RIGHT CORNER: Tiny "{ACCOUNT_HANDLE}" watermark in semi-transparent ivory or gold, never visually dominant
 
 RULES:
-- No faces, no logos, no readable brand names
-- Japanese typography (if any) must be perfectly rendered
-- Atmospheric, calm, refined — feels like the personal space of a tasteful 40-something man
-- Avoid clichés (no excessive cigars, no flashy luxury brands, no over-styled bachelor-pad vibes)
-- No bright/loud colors — earth tones, deep neutrals, soft warm light only
+- No readable brand names, no logos, no faces
+- Japanese typography must be perfectly rendered (proper mincho/serif rendering, accurate kerning)
+- Atmosphere over information — image must evoke 余裕 (refined leisure / composure)
+- Avoid clichés: no piles of red roses, no cigars, no flashy bachelor-pad vibes
+- Final image should make the viewer feel "this is what mature elegance looks like"
 """
 
 
