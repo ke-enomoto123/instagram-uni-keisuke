@@ -4,6 +4,40 @@ import anthropic
 from account_config import ACCOUNT_PERSONA, ACCOUNT_THEME, TOPIC_CATEGORIES, HASHTAGS_JA
 from config import ANTHROPIC_API_KEY
 
+
+def _tweet_weight(text: str) -> int:
+    """X (Twitter) の重み付き文字数を計算（CJKは2、Latin系は1）"""
+    weight = 0
+    for ch in text:
+        cp = ord(ch)
+        if (0x0000 <= cp <= 0x10FF) or \
+           (0x2000 <= cp <= 0x200D) or \
+           (0x2010 <= cp <= 0x201F) or \
+           (0x2032 <= cp <= 0x2037):
+            weight += 1
+        else:
+            weight += 2
+    return weight
+
+
+def _truncate_to_tweet_weight(text: str, max_weight: int = 270, suffix: str = "…") -> str:
+    """重み付き文字数で max_weight 以内に収める（margin 10で安全側）"""
+    if _tweet_weight(text) <= max_weight:
+        return text
+    suffix_weight = _tweet_weight(suffix)
+    target = max_weight - suffix_weight
+    weight = 0
+    for i, ch in enumerate(text):
+        cp = ord(ch)
+        char_weight = 1 if (0x0000 <= cp <= 0x10FF) or \
+                            (0x2000 <= cp <= 0x200D) or \
+                            (0x2010 <= cp <= 0x201F) or \
+                            (0x2032 <= cp <= 0x2037) else 2
+        if weight + char_weight > target:
+            return text[:i].rstrip() + suffix
+        weight += char_weight
+    return text
+
 # IGの投稿パターン（インフォグラフィック向けTips系を中心に）
 IG_POST_PATTERNS = [
     "Tips型",       # 大人の余裕の作り方 5選
@@ -119,30 +153,38 @@ def _generate_x_thread(topic: str, pattern: str) -> dict:
 【知識ベース（事実として参照可。捏造はNG）】
 {UNI_DOMAIN_KNOWLEDGE}
 
-【スレッド構成（必ず守る）】
-1. メインツイート（180〜260文字）
-   - キャッチーなタイトル（1行目で目を止める）
-   - その後にランキング/リスト項目を5つ簡潔に列挙（順位 or 番号付き）
-   - 末尾に「※詳しくはリプ欄👇」を入れる
-   - 例:
-     40代で『色気』が出る男の習慣 5選
+【⚠️ X の文字数仕様（厳守）】
+- X は日本語1文字を「重み2」、英数字を「重み1」でカウントし、合計280まで
+- つまり日本語のみだと **実質135字が上限**
+- 各ツイート（メインもリプライも）は **日本語135字以内、できれば120字程度** を厳守
+- 超えるとエラー（403 Forbidden）になる
 
-     1. 一人で行きつけの店を持っている
-     2. 朝の支度に余白を作っている
+【スレッド構成（必ず守る）】
+1. メインツイート（日本語110〜130字）
+   - キャッチーなタイトル（1行目で目を止める）
+   - その後にランキング/リスト項目を5つ短く列挙（1項目10〜15字）
+   - 末尾に「※詳しくはリプ欄👇」を入れる
+   - ハッシュタグは **メイン末尾に最大1個** まで（容量を圧迫するので慎重に）
+   - 例（日本語121字）:
+     40代で色気が出る男の習慣5選
+
+     1. 行きつけの店を持つ
+     2. 朝の余白を作る
      3. 香りで主張しない
-     4. 会話で先に質問しない
+     4. 先に質問しない
      5. 別れ際を急がない
 
      ※詳しくはリプ欄👇
 
-2. リプライ（180〜270文字）
-   - 各項目の補足を1〜2行ずつ
-   - 押しつけがましくなく、実体験ベースで
-   - 例:
-     1. 馴染みのバーは『一人で過ごせる場所』が一本ある
+2. リプライ（日本語110〜130字）
+   - 各項目の補足を1行ずつ。1項目18〜22字程度に収める
+   - ハッシュタグは入れない
+   - 押しつけがましくなく、実体験ベース
+   - 例（日本語120字）:
+     1. 馴染みの一人で過ごせる店が一本ある
      2. 朝5分の余白が日中の余裕を作る
-     3. 香水は近い距離で気づく程度に
-     4. 質問より、まず最後まで聞く
+     3. 香水は近距離で気づく程度に
+     4. 質問より先に最後まで聞く
      5. 別れ際の3秒で印象が決まる
 
 【出力フォーマット（厳守）】
@@ -178,11 +220,9 @@ def _generate_x_thread(topic: str, pattern: str) -> dict:
         main_text = text[:midpoint].strip()
         reply_text = text[midpoint:].strip()
 
-    # 280字制限（厳守）
-    if len(main_text) > 280:
-        main_text = main_text[:277].rstrip() + "…"
-    if len(reply_text) > 280:
-        reply_text = reply_text[:277].rstrip() + "…"
+    # 重み付き文字数で安全側 270 重み（< 280）にtruncate
+    main_text = _truncate_to_tweet_weight(main_text, max_weight=270)
+    reply_text = _truncate_to_tweet_weight(reply_text, max_weight=270)
 
     return {
         "tweets": [main_text, reply_text],
@@ -260,8 +300,10 @@ def build_x_thread() -> dict:
     print(f"[X Caption] パターン: {pattern}")
 
     result = _generate_x_thread(topic, pattern)
-    main_len = len(result["tweets"][0])
-    reply_len = len(result["tweets"][1])
-    print(f"[X Caption] Main: {main_len}字 / Reply: {reply_len}字")
+    main_text, reply_text = result["tweets"][0], result["tweets"][1]
+    print(
+        f"[X Caption] Main: {len(main_text)}字 (重み{_tweet_weight(main_text)}/280) / "
+        f"Reply: {len(reply_text)}字 (重み{_tweet_weight(reply_text)}/280)"
+    )
 
     return result
