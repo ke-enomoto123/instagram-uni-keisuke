@@ -1,7 +1,10 @@
 import base64
 import os
+import time
 import requests
 from config import X_OAUTH2_CLIENT_ID, X_OAUTH2_CLIENT_SECRET, X_OAUTH2_REFRESH_TOKEN
+
+THREAD_DELAY_SECONDS = 3
 
 
 def _update_github_secret(new_refresh_token: str):
@@ -185,6 +188,10 @@ def post_thread(
     reply_to: str | None = None
 
     for i, text in enumerate(tweets, start=1):
+        if i > 1:
+            print(f"[X] reply投稿前に {THREAD_DELAY_SECONDS} 秒待機（X側のconsistency対策）")
+            time.sleep(THREAD_DELAY_SECONDS)
+
         payload: dict = {"text": text}
         if i == 1 and media_id:
             payload["media"] = {"media_ids": [media_id]}
@@ -201,6 +208,21 @@ def post_thread(
             json=payload,
             timeout=30,
         )
+
+        # Replyで403になった場合、reply無しで再試行（スレッド連結は失われるが投稿は残す）
+        if not response.ok and response.status_code == 403 and "reply" in payload:
+            print(f"[X] reply形式で403 → reply無しで再試行")
+            payload.pop("reply", None)
+            response = requests.post(
+                "https://api.x.com/2/tweets",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=30,
+            )
+
         if not response.ok:
             print(f"[X] 投稿エラー詳細: {response.text}")
         response.raise_for_status()
