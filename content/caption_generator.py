@@ -20,23 +20,57 @@ def _tweet_weight(text: str) -> int:
     return weight
 
 
-def _truncate_to_tweet_weight(text: str, max_weight: int = 270, suffix: str = "…") -> str:
-    """重み付き文字数で max_weight 以内に収める（margin 10で安全側）"""
+def _split_tweet_by_sentence(text: str, max_weight: int = 270) -> list[str]:
+    """1ツイート分のテキストを、必要なら複数ツイートに分割（文単位優先、最後の手段で文字単位）"""
     if _tweet_weight(text) <= max_weight:
-        return text
-    suffix_weight = _tweet_weight(suffix)
-    target = max_weight - suffix_weight
-    weight = 0
-    for i, ch in enumerate(text):
-        cp = ord(ch)
-        char_weight = 1 if (0x0000 <= cp <= 0x10FF) or \
-                            (0x2000 <= cp <= 0x200D) or \
-                            (0x2010 <= cp <= 0x201F) or \
-                            (0x2032 <= cp <= 0x2037) else 2
-        if weight + char_weight > target:
-            return text[:i].rstrip() + suffix
-        weight += char_weight
-    return text
+        return [text]
+
+    import re
+    # 改行 / 句点 / 感嘆符 / 疑問符 で chunk 化（区切り記号を保持）
+    parts = re.split(r"(\n+|。|！|？)", text)
+    chunks = []
+    cur = ""
+    for p in parts:
+        if not p:
+            continue
+        if re.fullmatch(r"\n+|。|！|？", p):
+            cur += p
+            chunks.append(cur)
+            cur = ""
+        else:
+            cur += p
+    if cur:
+        chunks.append(cur)
+
+    tweets: list[str] = []
+    current = ""
+    for chunk in chunks:
+        if _tweet_weight(current + chunk) <= max_weight:
+            current += chunk
+        else:
+            if current.strip():
+                tweets.append(current.strip())
+            current = ""
+            # chunk 単体が長すぎる場合のみ、最終手段で文字単位ハード分割
+            while _tweet_weight(chunk) > max_weight:
+                weight = 0
+                idx = len(chunk)
+                for i, ch in enumerate(chunk):
+                    cp = ord(ch)
+                    cw = 1 if (0x0000 <= cp <= 0x10FF) or \
+                              (0x2000 <= cp <= 0x200D) or \
+                              (0x2010 <= cp <= 0x201F) or \
+                              (0x2032 <= cp <= 0x2037) else 2
+                    if weight + cw > max_weight:
+                        idx = i
+                        break
+                    weight += cw
+                tweets.append(chunk[:idx].rstrip())
+                chunk = chunk[idx:]
+            current = chunk
+    if current.strip():
+        tweets.append(current.strip())
+    return tweets
 
 # IGの投稿パターン（多様化）
 IG_POST_PATTERNS = [
@@ -280,9 +314,16 @@ def _generate_x_thread(topic: str, pattern: str, is_location: bool) -> dict:
 
 【⚠️ X の文字数仕様（厳守）】
 - X は日本語1文字を「重み2」、英数字を「重み1」でカウントし、合計280まで
-- つまり日本語のみだと **実質135字が上限**
-- 各ツイート（1件目もリプライも）は **日本語135字以内、目安120字程度** を厳守
+- 日本語のみだと **実質135字が上限**、ハッシュタグや記号も含むので余裕を見て120字
+- 各ツイート（1件目もリプライも）は **日本語120字以内、目安110字** で書く
+- ハッシュタグや「※続きはリプ欄👇」も文字数に含めて計算する
 - 超えるとエラー（403 Forbidden）になる
+
+【⚠️ 1ツイートに押し込まないこと】
+- 内容を1ツイートに無理に詰め込まない
+- 120字を超えそうになったら、文の終わりで切って **次のツイートに送る**
+- 「続きはリプ欄」「次に続く」など、自然な流れで次ツイートにつなぐ
+- 最終的なツイート数は当初の目標を超えてOK（質を優先）
 
 【スレッドの分量】
 - 今回は **{target_count}件** のツイートで構成してください
@@ -346,8 +387,11 @@ def _generate_x_thread(topic: str, pattern: str, is_location: bool) -> dict:
         midpoint = len(text) // 2
         tweets = [text[:midpoint].strip(), text[midpoint:].strip()]
 
-    # 重みベースで各ツイートをtruncate（margin 10）
-    tweets = [_truncate_to_tweet_weight(t, max_weight=270) for t in tweets]
+    # 重み超過なら文単位で分割（途切れた "…" を生まない）
+    expanded: list[str] = []
+    for t in tweets:
+        expanded.extend(_split_tweet_by_sentence(t, max_weight=270))
+    tweets = expanded
 
     return {
         "tweets": tweets,
