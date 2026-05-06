@@ -11,7 +11,7 @@ import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from content.caption_generator import build_caption, build_x_thread
+from content.caption_generator import build_caption, build_x_thread, _tweet_weight
 from content.image_generator import generate_image
 
 
@@ -41,14 +41,6 @@ def notify_slack(caption: str, image_url: str, x_tweets: list, run_url: str):
         print("[Slack] SLACK_WEBHOOK_URL未設定 → スキップ")
         return
 
-    main_tweet = x_tweets[0] if len(x_tweets) >= 1 else ""
-    reply_tweet = x_tweets[1] if len(x_tweets) >= 2 else ""
-
-    main_len = len(main_tweet)
-    reply_len = len(reply_tweet)
-    main_status = "✅" if main_len <= 280 else "⚠️ オーバー"
-    reply_status = "✅" if reply_len <= 280 else "⚠️ オーバー"
-
     blocks = [
         {
             "type": "header",
@@ -66,24 +58,18 @@ def notify_slack(caption: str, image_url: str, x_tweets: list, run_url: str):
         {"type": "divider"},
         {
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*🐦 Xメインツイート（同じ画像付き）:*\n```{main_tweet}```"}
+            "text": {"type": "mrkdwn", "text": f"*🐦 Xスレッド（{len(x_tweets)}件構成）:*"}
         },
-        {
+    ]
+    for i, tweet in enumerate(x_tweets, 1):
+        weight = _tweet_weight(tweet)
+        status = "✅" if weight <= 280 else "⚠️ 重み超過"
+        label = "1️⃣ メイン（画像付き）" if i == 1 else f"{i}️⃣ リプライ {i-1}"
+        blocks.append({
             "type": "section",
-            "fields": [
-                {"type": "mrkdwn", "text": f"*Main文字数:* {main_len} / 280　{main_status}"},
-            ]
-        },
-        {
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*🐦 Xリプライ（詳細）:*\n```{reply_tweet}```"}
-        },
-        {
-            "type": "section",
-            "fields": [
-                {"type": "mrkdwn", "text": f"*Reply文字数:* {reply_len} / 280　{reply_status}"},
-            ]
-        },
+            "text": {"type": "mrkdwn", "text": f"*{label}* ({len(tweet)}字 / 重み{weight}/280 {status})\n```{tweet}```"}
+        })
+    blocks += [
         {
             "type": "section",
             "text": {"type": "mrkdwn", "text": "👆 内容を確認して、GitHubで承認または却下してください"}
@@ -124,11 +110,12 @@ def main():
     print(f"\n[Generate] IGキャプション:\n{caption}")
     print(f"[Generate] 文字数: {len(caption)} / スコア: {result['score']}")
 
-    # X用スレッド投稿生成（main + reply）
+    # X用スレッド投稿生成（2-5件、内容に応じて可変）
     x_result = build_x_thread()
     x_tweets = x_result["tweets"]
-    print(f"\n[Generate] Xメイン:\n{x_tweets[0]}")
-    print(f"\n[Generate] Xリプライ:\n{x_tweets[1]}")
+    print(f"\n[Generate] Xスレッド: {len(x_tweets)}件構成")
+    for i, t in enumerate(x_tweets, 1):
+        print(f"\n[Generate] X tweet {i}/{len(x_tweets)}:\n{t}")
 
     # 画像生成（Instagram・X共用、メインツイートに添付）
     save_path = "/tmp/post_image.jpg"

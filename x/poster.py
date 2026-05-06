@@ -76,6 +76,31 @@ def _get_access_token() -> str:
     return access_token
 
 
+def _upload_media_v1(image_path: str) -> str | None:
+    """OAuth 1.0a + v1.1 メディアアップロード（Pay Per Use Free フォールバック用）"""
+    api_key = os.getenv("X_API_KEY", "")
+    api_secret = os.getenv("X_API_SECRET", "")
+    access_token = os.getenv("X_ACCESS_TOKEN", "")
+    access_token_secret = os.getenv("X_ACCESS_TOKEN_SECRET", "")
+
+    if not all([api_key, api_secret, access_token, access_token_secret]):
+        print("[X] OAuth 1.0a 認証情報未設定 → v1.1 fallback skip")
+        return None
+
+    try:
+        import tweepy
+        auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_token_secret)
+        api = tweepy.API(auth)
+        print(f"[X] v1.1 でメディアアップロード中: {image_path}")
+        media = api.media_upload(filename=image_path)
+        media_id = str(media.media_id)
+        print(f"[X] v1.1 アップロード完了: media_id={media_id}")
+        return media_id
+    except Exception as e:
+        print(f"[X] v1.1 アップロードエラー: {e}")
+        return None
+
+
 def _upload_media(image_path: str, access_token: str) -> str:
     """画像をX v2 Media Upload APIでアップロードし media_id を返す"""
     print(f"[X] 画像アップロード中: {image_path}")
@@ -181,8 +206,11 @@ def post_thread(
         try:
             media_id = _upload_media(image_path, access_token)
         except Exception as e:
-            print(f"[X] 画像アップロード失敗、テキストのみで継続: {e}")
-            media_id = None
+            print(f"[X] v2画像アップロード失敗: {e}")
+            print("[X] OAuth 1.0a + v1.1 でフォールバック試行")
+            media_id = _upload_media_v1(image_path)
+            if not media_id:
+                print("[X] 画像アップロードフォールバックも失敗、テキストのみで継続")
 
     tweet_ids: list[str] = []
     reply_to: str | None = None

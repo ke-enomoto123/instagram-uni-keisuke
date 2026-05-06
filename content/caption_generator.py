@@ -47,12 +47,17 @@ IG_POST_PATTERNS = [
     "リスト型",      # 大人がやってる小さな習慣
 ]
 
-# X用のスレッド投稿パターン（ランキング・リスト形式）
+# X用のスレッド投稿パターン（バラエティ重視）
 X_THREAD_PATTERNS = [
-    "ランキング型",      # 〇〇TOP5
-    "リスト型",          # 〇〇する人がやってる5つの習慣
-    "対比型",            # 〇〇する大人と、〇〇しない大人
-    "数字×断言型",       # 40代で品が出る◯◯のコツ7
+    "ランキング型（1位〜5位の順位付け）",
+    "理由型（理由1〜5で根拠を並べる）",
+    "段階型（初級・中級・上級・モテ級など段階分け）",
+    "ステップ型（Step 1〜5、順序立てた手順）",
+    "BEFORE→AFTER型（やる前 vs やった後の対比）",
+    "やりがちNG vs 大人の正解（NG3つ → 正解3つ）",
+    "リスト型（〇〇する人がやってる5つの習慣など）",
+    "DO/DON'T型（やる方 vs やらない方を5項目）",
+    "数字×断言型（40代で品が出る◯◯のコツ7など）",
 ]
 
 # uni固有の知識ベース（事実として参照可。捏造はNG）
@@ -132,9 +137,19 @@ def _generate_ig_caption(topic: str, pattern: str) -> str:
     return text
 
 
+def _parse_thread_tweets(text: str) -> list[str]:
+    """==TWEET N== 区切りでスレッドをパース"""
+    import re
+    parts = re.split(r"==\s*TWEET\s*\d+\s*==", text)
+    return [p.strip() for p in parts if p.strip()]
+
+
 def _generate_x_thread(topic: str, pattern: str) -> dict:
-    """X用ランキング/リスト形式のスレッド投稿を生成（main + reply）"""
+    """X用スレッド投稿を生成（2〜5件、内容の質に応じて構成可変）"""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    # 内容の量に応じて2-5件のツイート数を方針として渡す
+    target_count = random.choices([2, 3, 4, 5], weights=[35, 35, 20, 10])[0]
 
     prompt = f"""あなたは以下のペルソナでX（Twitter）のスレッド投稿を作ります。
 
@@ -156,78 +171,74 @@ def _generate_x_thread(topic: str, pattern: str) -> dict:
 【⚠️ X の文字数仕様（厳守）】
 - X は日本語1文字を「重み2」、英数字を「重み1」でカウントし、合計280まで
 - つまり日本語のみだと **実質135字が上限**
-- 各ツイート（メインもリプライも）は **日本語135字以内、できれば120字程度** を厳守
+- 各ツイート（1件目もリプライも）は **日本語135字以内、目安120字程度** を厳守
 - 超えるとエラー（403 Forbidden）になる
 
-【スレッド構成（必ず守る）】
-1. メインツイート（日本語110〜130字）
-   - キャッチーなタイトル（1行目で目を止める）
-   - その後にランキング/リスト項目を5つ短く列挙（1項目10〜15字）
-   - 末尾に「※詳しくはリプ欄👇」を入れる
-   - ハッシュタグは **メイン末尾に最大1個** まで（容量を圧迫するので慎重に）
-   - 例（日本語121字）:
-     40代で色気が出る男の習慣5選
+【スレッドの分量】
+- 今回は **{target_count}件** のツイートで構成してください
+- 内容の質を最優先。文字数を埋めるための水増しは禁止
+- 各ツイートは独立して読めるよう配慮
 
-     1. 行きつけの店を持つ
-     2. 朝の余白を作る
-     3. 香りで主張しない
-     4. 先に質問しない
-     5. 別れ際を急がない
+【スレッド構成パターン例（{target_count}件構成のとき）】
+- 2件: 1=タイトル＋全項目見出し / 2=各項目の詳細をまとめて
+- 3件: 1=タイトル＋全項目見出し / 2=詳細前半 / 3=詳細後半
+- 4件: 1=フック＋全項目見出し / 2=上位3項目の詳細 / 3=残り2項目の詳細 / 4=まとめ
+- 5件: 1=タイトル＋全項目見出し / 2-5=各項目1ツイートずつ深掘り
 
-     ※詳しくはリプ欄👇
+【投稿パターン】
+{pattern}
 
-2. リプライ（日本語110〜130字）
-   - 各項目の補足を1行ずつ。1項目18〜22字程度に収める
-   - ハッシュタグは入れない
-   - 押しつけがましくなく、実体験ベース
-   - 例（日本語120字）:
-     1. 馴染みの一人で過ごせる店が一本ある
-     2. 朝5分の余白が日中の余裕を作る
-     3. 香水は近距離で気づく程度に
-     4. 質問より先に最後まで聞く
-     5. 別れ際の3秒で印象が決まる
+→ 「ランキング型」なら1位〜5位、「段階型」なら初級・中級・上級・モテ級、
+  「BEFORE→AFTER型」なら変化の前後、「DO/DON'T型」ならOK例とNG例、
+  というように、選んだパターンに合った構造で組み立ててください。
+
+【1件目（先頭ツイート）の必須要素】
+- 1行目で目を止めるキャッチー（タイトル）
+- 全項目（5つ前後）の見出しだけを短く列挙（1項目10〜15字）
+- 末尾に「※続きはリプ欄👇」のような誘導を入れる
+- ハッシュタグはメイン末尾に **最大1個** まで
+
+【2件目以降の必須要素】
+- 各項目の補足を1行ずつ
+- ハッシュタグは入れない
+- 押しつけがましくなく、実体験ベース
 
 【出力フォーマット（厳守）】
-==MAIN==
-（メインツイート本文。改行を使ってOK）
-==REPLY==
-（リプライ本文。改行を使ってOK）
+==TWEET 1==
+（1件目本文。改行使用OK）
+==TWEET 2==
+（2件目本文）
+...（合計{target_count}件分繰り返す）
 
-【ルール】
-- 軽薄・下品な言い回しNG。年相応の品を保つ
-- 過剰な筋トレ・ハードトレーニングは話題にしない
-- ハッシュタグはメインの末尾に1〜2個まで
+【絶対ルール】
+- 軽薄・下品NG。年相応の品を保つ
+- 過剰な筋トレ・ハードトレーニング・極端なダイエットは話題にしない
 - 絵文字は最小限（0〜2個、👇程度）
-- 文末「。」は付けない"""
+- 文末「。」は付けない
+- 各ツイートは日本語135字以内（重み280以内）"""
 
     message = client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=900,
+        max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
     text = message.content[0].text.strip()
 
-    # ==MAIN== / ==REPLY== でパース
-    main_text = ""
-    reply_text = ""
-    if "==MAIN==" in text and "==REPLY==" in text:
-        parts = text.split("==REPLY==")
-        main_text = parts[0].split("==MAIN==", 1)[1].strip()
-        reply_text = parts[1].strip()
-    else:
-        # フォールバック: 半分割
-        midpoint = len(text) // 2
-        main_text = text[:midpoint].strip()
-        reply_text = text[midpoint:].strip()
+    tweets = _parse_thread_tweets(text)
 
-    # 重み付き文字数で安全側 270 重み（< 280）にtruncate
-    main_text = _truncate_to_tweet_weight(main_text, max_weight=270)
-    reply_text = _truncate_to_tweet_weight(reply_text, max_weight=270)
+    # フォールバック: パース失敗で2件未満なら半分割
+    if len(tweets) < 2:
+        midpoint = len(text) // 2
+        tweets = [text[:midpoint].strip(), text[midpoint:].strip()]
+
+    # 重みベースで各ツイートをtruncate（margin 10）
+    tweets = [_truncate_to_tweet_weight(t, max_weight=270) for t in tweets]
 
     return {
-        "tweets": [main_text, reply_text],
+        "tweets": tweets,
         "topic": topic,
         "pattern": pattern,
+        "target_count": target_count,
     }
 
 
@@ -300,10 +311,9 @@ def build_x_thread() -> dict:
     print(f"[X Caption] パターン: {pattern}")
 
     result = _generate_x_thread(topic, pattern)
-    main_text, reply_text = result["tweets"][0], result["tweets"][1]
-    print(
-        f"[X Caption] Main: {len(main_text)}字 (重み{_tweet_weight(main_text)}/280) / "
-        f"Reply: {len(reply_text)}字 (重み{_tweet_weight(reply_text)}/280)"
-    )
+    print(f"[X Caption] {len(result['tweets'])}件構成（目標{result.get('target_count','?')}件）")
+    for i, t in enumerate(result["tweets"], 1):
+        label = "Main " if i == 1 else f"Tw{i:>2}"
+        print(f"[X Caption] {label}: {len(t)}字 (重み{_tweet_weight(t)}/280)")
 
     return result

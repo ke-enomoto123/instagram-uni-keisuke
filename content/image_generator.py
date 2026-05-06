@@ -16,10 +16,15 @@ ACCOUNT_HANDLE = "@uni.4534"
 PRIMARY_COLOR_HEX = "#1a1a1a"      # 黒に近いダークグレー
 ACCENT_COLOR_HEX = "#a08e5e"        # ゴールドベージュ
 
-# 画像スタイル（ランダム選択）
-# tips_infographic: Tips型インフォグラフィック（A・C系トピック向け）
-# lifestyle_scene:  ライフスタイル雰囲気写真（B系トピック向け）
-IMAGE_STYLES = ["tips_infographic", "lifestyle_scene"]
+# 画像スタイル（重み付きランダム選択）
+# illustration_with_people: 人物イラスト＋会話/気づき調（日常感重視）
+# tips_infographic:         上品なTips型インフォグラフィック
+# lifestyle_scene:          ライフスタイル写真＋オーバーレイTips
+IMAGE_STYLES = [
+    ("illustration_with_people", 50),  # 日常感メイン（半分）
+    ("tips_infographic", 25),
+    ("lifestyle_scene", 25),
+]
 
 
 def _analyze_caption(caption: str) -> dict:
@@ -173,8 +178,71 @@ RULES:
 """
 
 
+def _prompt_illustration_with_people(c: dict) -> str:
+    """人物イラスト＋会話/気づき調（日常感あり）"""
+    main_headline = c.get("main_headline", "")
+    sub_headline = c.get("sub_headline", "")
+    tip_items = c.get("tip_items", []) or []
+    short_tips = tip_items[:5]
+    mood = c.get("mood", "warm")
+
+    # 吹き出し用に1番目のtipを抜粋（短い「気づき」表現）
+    speech_tip = (short_tips[0] if short_tips else main_headline) or "それ、わかる"
+
+    items_block = ""
+    if short_tips:
+        nums = "\n".join([f'    {i+1}. "{t}"' for i, t in enumerate(short_tips)])
+        items_block = f"""
+- BOTTOM-RIGHT or RIGHT-SIDE PANEL: A small notebook-page or tasteful list area showing numbered tips:
+{nums}
+  Hand-lettered or rounded mincho typography, in muted brown or navy ink.
+"""
+
+    palette = {
+        "calm":   "muted cream background with sage green and soft terracotta accents — like 暮しの手帖 magazine",
+        "warm":   "warm cream/oatmeal background with warm taupe, soft orange, and navy — like a tasteful Japanese editorial illustration",
+        "sophisticated": "warm beige with deep navy and warm rust accents — refined but inviting, like a Brutus magazine illustration",
+    }.get(mood, "warm cream with warm taupe, soft orange, and navy — tasteful Japanese editorial illustration")
+
+    return f"""
+Create a warm modern Japanese editorial illustration (1:1 square, 1024x1024px) for an adult men's lifestyle Instagram post.
+
+AESTHETIC REFERENCE:
+Contemporary Japanese editorial illustration. Think Brutus / Casa BRUTUS / 暮しの手帖 illustrations, New Yorker cartoons softened, or quiet Japanese book covers. Hand-drawn feel, expressive but refined.
+
+SCENE:
+A relatable everyday moment featuring 1-2 simply illustrated adult figures (40s man, possibly with a friend / partner / colleague). The scene captures a small "あ、わかる" moment of realization or quiet conversation.
+- Setting examples: cafe counter, izakaya, hotel bar, walking on an evening street, study desk, train window seat, kitchen at night. Pick what fits the headline mood.
+- Characters: simple but warm linework, friendly faces (no excessive detail). The 40s man is in tasteful smart-casual (sweater, knit, shirt). Show personality through posture, gesture, small details.
+- Optional: a subtle thought bubble OR small speech-bubble panel near a character with brief Japanese text "{speech_tip}" (under 14 chars), feeling natural, not preachy.
+
+LAYOUT:
+- TOP or TOP-LEFT: Headline "{main_headline}" in elegant casual rounded mincho or hand-lettered serif Japanese, in deep navy or warm rust
+- {f'Below in smaller weight: "{sub_headline}"' if sub_headline else ''}
+- CENTER: The illustrated scene (largest visual element)
+{items_block}
+- BOTTOM or BOTTOM-LEFT: Tiny "{ACCOUNT_HANDLE}" handle in casual hand-lettered style
+
+PALETTE:
+{palette}
+- Soft watercolor / colored-pencil shading — gentle, no harsh outlines
+- Optional subtle paper or linen texture in background
+
+TONE:
+- "this could be me" — warm relatability
+- Not luxurious-stiff, not childish — refined warmth
+- Insight, conversation, or quiet observation — never preachy
+
+RULES:
+- Japanese text must be perfectly rendered (mincho/casual rounded weight)
+- No real-brand logos
+- Faces are illustrated and friendly, never realistic photographic
+- Mood: warm, inviting, relatable, slightly melancholic or contemplative is OK
+"""
+
+
 def _build_prompt(caption: str) -> str:
-    """キャプション分析 → ランダムにスタイル選択してプロンプト生成"""
+    """キャプション分析 → 重み付きランダムでスタイル選択してプロンプト生成"""
     try:
         c = _analyze_caption(caption)
         print(f"[Image] 画像コンセプト: {c}")
@@ -182,11 +250,14 @@ def _build_prompt(caption: str) -> str:
         print(f"[Image] キャプション分析失敗、デフォルト使用: {e}")
         c = {}
 
-    style = random.choice(IMAGE_STYLES)
+    styles, weights = zip(*IMAGE_STYLES)
+    style = random.choices(styles, weights=weights, k=1)[0]
     print(f"[Image] スタイル: {style}")
 
     if style == "tips_infographic":
         return _prompt_tips_infographic(c)
+    elif style == "illustration_with_people":
+        return _prompt_illustration_with_people(c)
     else:
         return _prompt_lifestyle_scene(c)
 
