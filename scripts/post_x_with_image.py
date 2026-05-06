@@ -53,11 +53,11 @@ def main():
         else:
             image_path = None
 
-        tweet_ids = post_thread(x_tweets, image_path=image_path, x_username="uni_keisuke")
+        tweet_ids = post_thread(x_tweets, image_path=image_path, x_username="uniuniuniuni37")
     except Exception as e:
         print(f"[Post X] スレッド投稿失敗: {e}")
         print("[Post X] テキストのみ・スレッドで再試行...")
-        tweet_ids = post_thread(x_tweets, image_path=None, x_username="uni_keisuke")
+        tweet_ids = post_thread(x_tweets, image_path=None, x_username="uniuniuniuni37")
 
     print(f"\n[Post X] ✅ X投稿完了! {len(tweet_ids)}件、URL: https://x.com/uni_keisuke/status/{tweet_ids[0]}")
 

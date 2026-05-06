@@ -103,7 +103,7 @@ def _upload_media(image_path: str, access_token: str) -> str:
     return media_id
 
 
-def post_tweet(text: str, x_username: str = "uni_keisuke") -> str:
+def post_tweet(text: str, x_username: str = "uniuniuniuni37") -> str:
     """X（Twitter）にテキストのみのツイートを投稿する。"""
     print(f"[X] ツイート投稿開始...")
     print(f"[X] 文字数: {len(text)}")
@@ -132,7 +132,7 @@ def post_tweet(text: str, x_username: str = "uni_keisuke") -> str:
     return tweet_id
 
 
-def post_tweet_with_image(text: str, image_path: str, x_username: str = "uni_keisuke") -> str:
+def post_tweet_with_image(text: str, image_path: str, x_username: str = "uniuniuniuni37") -> str:
     """X（Twitter）に画像付きツイートを投稿する。"""
     print(f"[X] 画像付きツイート投稿開始...")
     print(f"[X] 文字数: {len(text)}")
@@ -163,7 +163,7 @@ def post_tweet_with_image(text: str, image_path: str, x_username: str = "uni_kei
 def post_thread(
     tweets: list[str],
     image_path: str | None = None,
-    x_username: str = "uni_keisuke",
+    x_username: str = "uniuniuniuni37",
 ) -> list[str]:
     """X にスレッド投稿する。最初のツイートに画像を付け、以降をリプライで連結する。"""
     if not tweets:
